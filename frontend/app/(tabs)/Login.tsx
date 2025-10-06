@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from 'react-native';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
+
 
 
 // Cambia según tu entorno
@@ -13,29 +14,22 @@ export default function Login({ navigation }: any) {
 
   const iniciarSesion = async () => {
   if (!correo || !pass) {
-    Alert.alert('Error', 'Por favor, ingresa correo y contraseña');
+    alert('Por favor, ingresa correo y contraseña');
     return;
   }
   
   try {
-  const res = await axios.post('http://localhost:3000/login', { correo, pass });
-  const usuario = res.data.usuario;
-
-  if (usuario && usuario.nombre) {
-    Alert.alert('Bienvenido', `Hola ${usuario.nombre}!`);
+    const res = await axios.post('http://localhost:3000/login', { correo, pass });
     navigation.navigate('Usuarios');
-  } else {
-    Alert.alert('Error', 'Datos incorrectos o no válidos');
-  }
-} catch (error: any) {
-  if (error.response && error.response.data.message) {
-    Alert.alert('Error', error.response.data.message);
-  } else {
-    Alert.alert('Error', 'No se pudo iniciar sesión');
-  }
+  }catch (err: unknown) {
+    const error = err as AxiosError;
+    if (error.response?.status === 401) {
+      alert('Datos incorrectos o no válidos');
+    } else {
+      alert('Error en la conexión o servidor');
+    }
 }
-
-};
+  };
 
   return (
     <View style={styles.container}>

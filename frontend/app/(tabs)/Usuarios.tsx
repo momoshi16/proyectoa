@@ -1,89 +1,142 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, Button, TextInput, StyleSheet, Alert } from 'react-native';
 
 type Usuario = {
-  id: number;
   nombre: string;
+  correo: string | null;
+  matricula: string | null;
+  grado: string | null;
+  tipo_usuario: string;
 };
 
 export default function Usuarios() {
-  const [usuarios, setUsuarios] = useState<Usuario[]>([
-    { id: 1, nombre: 'Juan' },
-    { id: 2, nombre: 'Ana' },
-  ]);
-  const [nuevoNombre, setNuevoNombre] = useState('');
-  const [editarId, setEditarId] = useState<number | null>(null);
-  const [editarNombre, setEditarNombre] = useState('');
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [editarId, setEditarId] = useState<string | null>(null);
+  const [editarUsuario, setEditarUsuario] = useState<Usuario | null>(null);
 
-  // Crear usuario
-  const agregarUsuario = () => {
-    if (nuevoNombre.trim() === '') {
-      Alert.alert('Error', 'El nombre no puede estar vacío');
-      return;
-    }
-    const nuevoUsuario = {
-      id: Date.now(),
-      nombre: nuevoNombre.trim(),
-    };
-    setUsuarios([...usuarios, nuevoUsuario]);
-    setNuevoNombre('');
-  };
+  useEffect(() => {
+    fetch('http://localhost:3000/usuarios')
+      .then(res => res.json())
+      .then(data => {
+        if (data.usuarios) {
+          setUsuarios(data.usuarios);
+        } else {
+          Alert.alert('Error', 'No se recibieron datos de usuarios');
+        }
+      })
+      .catch(() => {
+        Alert.alert('Error', 'No se pudo obtener la lista de usuarios');
+      });
+  }, []);
 
-  // Eliminar usuario
-  const eliminarUsuario = (id: number) => {
-    setUsuarios(usuarios.filter(u => u.id !== id));
-  };
-
-  // Iniciar edición
+  // Iniciar edición: guardar copia del usuario para editar
   const iniciarEdicion = (usuario: Usuario) => {
-    setEditarId(usuario.id);
-    setEditarNombre(usuario.nombre);
+    setEditarId(usuario.nombre);
+    setEditarUsuario({ ...usuario });
   };
 
-  // Guardar edición
-  const guardarEdicion = () => {
-    if (editarNombre.trim() === '') {
-      Alert.alert('Error', 'El nombre no puede estar vacío');
-      return;
-    }
-    setUsuarios(usuarios.map(u => (u.id === editarId ? { ...u, nombre: editarNombre.trim() } : u)));
-    setEditarId(null);
-    setEditarNombre('');
+  // Guardar edición: validar y actualizar usuario
+const guardarEdicion = () => {
+  if (!editarUsuario) return;
+      console.log('Todos los usuarios actuales:', editarUsuario);
+  if (editarUsuario.nombre.trim() === '') {
+    alert('El nombre no puede estar vacío');
+    return;
+  }
+
+  // Enviar datos al backend
+  fetch('http://localhost:3000/usuarios', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(editarUsuario),
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.message) {
+        // Actualizar estado local con los datos editados
+        setUsuarios(usuarios.map(u =>
+          u.nombre === editarId ? { ...editarUsuario } : u
+        ));
+        setEditarId(null);
+        setEditarUsuario(null);
+        alert(data.message);
+      } else {
+        alert('No se pudo guardar el usuario');
+      }
+    })
+    .catch(() => {
+      alert('No se pudo conectar con el servidor');
+    });
+};
+
+
+  // Actualizar campo editable en estado editarUsuario
+  const onChangeCampo = (campo: keyof Usuario, valor: string) => {
+    if (!editarUsuario) return;
+    const nuevoEstado = { ...editarUsuario, [campo]: valor };
+    console.log('Editar usuario actualizado:', nuevoEstado);
+    setEditarUsuario(nuevoEstado);
+
+  };
+
+  const eliminarUsuario = (nombre: string) => {
+    setUsuarios(usuarios.filter(u => u.nombre !== nombre));
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Lista de Usuarios</Text>
 
-      <View style={styles.crearContainer}>
-        <TextInput
-          placeholder="Nuevo usuario"
-          value={nuevoNombre}
-          onChangeText={setNuevoNombre}
-          style={styles.input}
-        />
-        <Button title="Crear" onPress={agregarUsuario} />
-      </View>
-
       <FlatList
         data={usuarios}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={item => item.nombre}
         renderItem={({ item }) => (
           <View style={styles.usuarioContainer}>
-            {editarId === item.id ? (
+            {editarId === item.nombre && editarUsuario ? (
               <>
                 <TextInput
-                  value={editarNombre}
-                  onChangeText={setEditarNombre}
-                  style={styles.inputEditar}
+                  style={[styles.inputEditar, { flex: 2 }]}
+                  value={editarUsuario.nombre}
+                  onChangeText={v => onChangeCampo('nombre', v)}
+                  placeholder="Nombre"
                 />
+                <TextInput
+                  style={[styles.inputEditar, { flex: 3 }]}
+                  value={editarUsuario.correo || ''}
+                  onChangeText={v => onChangeCampo('correo', v)}
+                  placeholder="Correo"
+                />
+                <TextInput
+                  style={[styles.inputEditar, { flex: 2 }]}
+                  value={editarUsuario.matricula || ''}
+                  onChangeText={v => onChangeCampo('matricula', v)}
+                  placeholder="Matrícula"
+                />
+                <TextInput
+                  style={[styles.inputEditar, { flex: 2 }]}
+                  value={editarUsuario.grado || ''}
+                  onChangeText={v => onChangeCampo('grado', v)}
+                  placeholder="Grado"
+                />
+                <TextInput
+                  style={[styles.inputEditar, { flex: 2 }]}
+                  value={editarUsuario.tipo_usuario}
+                  onChangeText={v => onChangeCampo('tipo_usuario', v)}
+                  placeholder="Tipo Usuario"
+                />
+
                 <Button title="Guardar" onPress={guardarEdicion} />
               </>
             ) : (
               <>
-                <Text style={styles.usuarioTexto}>{item.nombre}</Text>
+                <Text style={[styles.campoTexto, { flex: 2 }]}>{item.nombre}</Text>
+                <Text style={[styles.campoTexto, { flex: 3 }]}>{item.correo || '-'}</Text>
+                <Text style={[styles.campoTexto, { flex: 2 }]}>{item.matricula || '-'}</Text>
+                <Text style={[styles.campoTexto, { flex: 2 }]}>{item.grado || '-'}</Text>
+                <Text style={[styles.campoTexto, { flex: 2 }]}>{item.tipo_usuario}</Text>
+
                 <Button title="Editar" onPress={() => iniciarEdicion(item)} />
-                <Button title="Eliminar" onPress={() => eliminarUsuario(item.id)} color="red" />
+                <Button title="Eliminar" onPress={() => eliminarUsuario(item.nombre)} color="red" />
               </>
             )}
           </View>
@@ -96,20 +149,20 @@ export default function Usuarios() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#fff' },
   title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
-  crearContainer: { flexDirection: 'row', marginBottom: 20, alignItems: 'center' },
-  input: { flex: 1, borderColor: '#ccc', borderWidth: 1, padding: 8, marginRight: 10, borderRadius: 5 },
   usuarioContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  usuarioTexto: { flex: 1, fontSize: 18 },
+  campoTexto: {
+    fontSize: 16,
+    paddingHorizontal: 4,
+  },
   inputEditar: {
-    flex: 1,
     borderColor: '#888',
     borderWidth: 1,
     padding: 6,
-    marginRight: 10,
-    borderRadius: 5
+    marginRight: 6,
+    borderRadius: 5,
   },
 });
